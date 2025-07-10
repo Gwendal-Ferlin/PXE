@@ -383,7 +383,8 @@ function updatePageTitle(pageName) {
         'storage': 'Stockage',
         'network': 'Réseau',
         'monitoring': 'Monitoring',
-        'settings': 'Paramètres'
+        'settings': 'Paramètres',
+        'profile': 'Mon Profil'
     };
     
     if (titleElement && titles[pageName]) {
@@ -726,6 +727,9 @@ function loadPageData(pageName) {
         case 'settings':
             loadSettingsData();
             break;
+        case 'profile':
+            loadProfileData();
+            break;
     }
 }
 
@@ -994,31 +998,354 @@ function loadMonitoringData() {
     `;
 }
 
+// Charger les données des paramètres
 function loadSettingsData() {
-    const settingsSections = document.querySelector('.settings-sections');
-    if (!settingsSections) return;
+    // Simulation de chargement des paramètres
+    console.log('Chargement de la page Paramètres');
     
-    settingsSections.innerHTML = `
-        <div class="settings-section">
-            <h3>Configuration Générale</h3>
+    const settingsSection = document.querySelector('#settings-page .settings-sections');
+    if (!settingsSection) return;
+    
+    settingsSection.innerHTML = `
+        <div class="settings-card">
+            <h3>Configuration générale</h3>
             <div class="settings-form">
                 <div class="form-group">
-                    <label>Thème:</label>
+                    <label>Langue par défaut</label>
                     <select>
-                        <option>Clair</option>
-                        <option>Sombre</option>
+                        <option value="fr" selected>Français</option>
+                        <option value="en">English</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Langue:</label>
+                    <label>Thème</label>
                     <select>
-                        <option>Français</option>
-                        <option>English</option>
+                        <option value="light" selected>Clair</option>
+                        <option value="dark">Sombre</option>
                     </select>
                 </div>
             </div>
         </div>
     `;
+}
+
+// Charger les données de profil
+function loadProfileData() {
+    console.log('Chargement de la page Profil');
+    
+    // Charger les informations utilisateur depuis la session
+    if (currentUser) {
+        updateProfileData();
+    }
+    
+    // Configurer les event listeners pour les interactions
+    setupProfileInteractions();
+}
+
+// Mettre à jour les données du profil avec les informations utilisateur
+function updateProfileData() {
+    if (!currentUser) return;
+    
+    // Mettre à jour les champs du formulaire selon l'utilisateur connecté
+    const firstnameInput = document.getElementById('profile-firstname');
+    const lastnameInput = document.getElementById('profile-lastname');
+    const emailInput = document.getElementById('profile-email');
+    const roleInput = document.getElementById('profile-role');
+    
+    if (firstnameInput) {
+        firstnameInput.value = currentUser.username === 'admin' ? 'John' :
+                              currentUser.username === 'user' ? 'Jane' : 'Demo';
+    }
+    
+    if (lastnameInput) {
+        lastnameInput.value = currentUser.username === 'admin' ? 'Doe' :
+                             currentUser.username === 'user' ? 'Smith' : 'User';
+    }
+    
+    if (emailInput) {
+        emailInput.value = `${currentUser.username}@pxemanager.com`;
+    }
+    
+    if (roleInput) {
+        roleInput.value = currentUser.role;
+    }
+    
+    // Mettre à jour la photo de profil selon le rôle
+    const profilePicture = document.getElementById('profile-picture');
+    if (profilePicture) {
+        const avatarUrls = {
+            'admin': 'https://placehold.co/150x150',
+            'user': 'https://placehold.co/150x150',
+            'demo': 'https://placehold.co/150x150'
+        };
+        profilePicture.src = avatarUrls[currentUser.username] || avatarUrls['demo'];
+    }
+}
+
+// Configurer les interactions de la page profil
+function setupProfileInteractions() {
+    // Gestion des toggle switches
+    setupToggleSwitches();
+    
+    // Gestion des boutons de la page profil
+    setupProfileButtons();
+    
+    // Gestion du changement de photo
+    setupPhotoUpload();
+}
+
+// Configurer les toggle switches
+function setupToggleSwitches() {
+    const toggles = document.querySelectorAll('.toggle-switch input[type="checkbox"]');
+    
+    toggles.forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const toggleId = this.id;
+            const isChecked = this.checked;
+            
+            switch(toggleId) {
+                case 'google-2fa':
+                    handleGoogle2FAToggle(isChecked);
+                    break;
+                case 'sms-2fa':
+                    handleSMS2FAToggle(isChecked);
+                    break;
+                case 'email-notifications':
+                    handleEmailNotificationsToggle(isChecked);
+                    break;
+                case 'desktop-notifications':
+                    handleDesktopNotificationsToggle(isChecked);
+                    break;
+            }
+        });
+    });
+}
+
+// Gestion du toggle Google 2FA
+function handleGoogle2FAToggle(isEnabled) {
+    if (isEnabled) {
+        showNotification('Google Authenticator activé', 'success');
+        // Mettre à jour l'affichage du statut
+        updateSecurityStatus('google-2fa', 'enabled', 'Activé depuis aujourd\'hui');
+    } else {
+        if (confirm('Êtes-vous sûr de vouloir désactiver Google Authenticator ? Cela réduira la sécurité de votre compte.')) {
+            showNotification('Google Authenticator désactivé', 'warning');
+            updateSecurityStatus('google-2fa', 'disabled', 'Non configuré');
+        } else {
+            // Remettre le toggle à ON si l'utilisateur annule
+            document.getElementById('google-2fa').checked = true;
+        }
+    }
+}
+
+// Gestion du toggle SMS 2FA
+function handleSMS2FAToggle(isEnabled) {
+    if (isEnabled) {
+        showQRCodeModal();
+    } else {
+        showNotification('Authentification SMS désactivée', 'info');
+        updateSecurityStatus('sms-2fa', 'disabled', 'Non configuré');
+    }
+}
+
+// Gestion des notifications email
+function handleEmailNotificationsToggle(isEnabled) {
+    const status = isEnabled ? 'activées' : 'désactivées';
+    showNotification(`Notifications email ${status}`, 'info');
+}
+
+// Gestion des notifications desktop
+function handleDesktopNotificationsToggle(isEnabled) {
+    if (isEnabled) {
+        // Demander la permission pour les notifications
+        if ("Notification" in window) {
+            Notification.requestPermission().then(function (permission) {
+                if (permission === "granted") {
+                    showNotification('Notifications desktop activées', 'success');
+                    new Notification("PXE Manager", {
+                        body: "Les notifications desktop sont maintenant activées !",
+                        icon: "/favicon.ico"
+                    });
+                } else {
+                    showNotification('Permission refusée pour les notifications', 'warning');
+                    document.getElementById('desktop-notifications').checked = false;
+                }
+            });
+        } else {
+            showNotification('Notifications non supportées par ce navigateur', 'error');
+            document.getElementById('desktop-notifications').checked = false;
+        }
+    } else {
+        showNotification('Notifications desktop désactivées', 'info');
+    }
+}
+
+// Mettre à jour le statut de sécurité
+function updateSecurityStatus(securityType, status, message) {
+    const securityCard = document.querySelector(`#${securityType}`).closest('.security-card');
+    const statusElement = securityCard.querySelector('.security-status');
+    
+    if (statusElement) {
+        statusElement.className = `security-status ${status}`;
+        statusElement.innerHTML = `
+            <i class="fas fa-${status === 'enabled' ? 'check-circle' : status === 'disabled' ? 'times-circle' : 'exclamation-triangle'}"></i>
+            ${message}
+        `;
+    }
+}
+
+// Configurer les boutons de la page profil
+function setupProfileButtons() {
+    // Bouton sauvegarder
+    const saveButton = document.querySelector('#profile-page .btn-primary');
+    if (saveButton) {
+        saveButton.addEventListener('click', function() {
+            saveProfileChanges();
+        });
+    }
+    
+    // Boutons des sessions
+    const disconnectButtons = document.querySelectorAll('.session-item .btn-warning');
+    disconnectButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            disconnectSession(this);
+        });
+    });
+    
+    // Bouton déconnecter partout
+    const disconnectAllButton = document.querySelector('#profile-page .btn-warning');
+    if (disconnectAllButton && disconnectAllButton.textContent.includes('Déconnecter partout')) {
+        disconnectAllButton.addEventListener('click', function() {
+            disconnectAllSessions();
+        });
+    }
+}
+
+// Sauvegarder les modifications du profil
+function saveProfileChanges() {
+    showNotification('Profil sauvegardé avec succès', 'success');
+    
+    // Mettre à jour les informations utilisateur
+    const firstname = document.getElementById('profile-firstname').value;
+    const lastname = document.getElementById('profile-lastname').value;
+    
+    if (currentUser) {
+        currentUser.displayName = `${firstname} ${lastname}`;
+        document.getElementById('logged-user-name').textContent = currentUser.displayName;
+    }
+}
+
+// Déconnecter une session spécifique
+function disconnectSession(button) {
+    const sessionItem = button.closest('.session-item');
+    if (sessionItem && !sessionItem.classList.contains('current')) {
+        if (confirm('Êtes-vous sûr de vouloir déconnecter cette session ?')) {
+            sessionItem.remove();
+            showNotification('Session déconnectée', 'success');
+        }
+    }
+}
+
+// Déconnecter toutes les autres sessions
+function disconnectAllSessions() {
+    if (confirm('Êtes-vous sûr de vouloir déconnecter toutes les autres sessions ? Cette action est irréversible.')) {
+        const otherSessions = document.querySelectorAll('.session-item:not(.current)');
+        otherSessions.forEach(session => session.remove());
+        showNotification('Toutes les autres sessions ont été déconnectées', 'success');
+    }
+}
+
+// Configurer l'upload de photo
+function setupPhotoUpload() {
+    const photoActions = document.querySelectorAll('.photo-actions .btn-secondary');
+    
+    photoActions.forEach(button => {
+        button.addEventListener('click', function() {
+            if (this.textContent.includes('Changer')) {
+                // Simuler un changement de photo
+                changeProfilePhoto();
+            } else if (this.textContent.includes('Supprimer')) {
+                // Supprimer la photo
+                removeProfilePhoto();
+            }
+        });
+    });
+    
+    // Clic sur la photo elle-même
+    const profilePhoto = document.querySelector('.profile-photo');
+    if (profilePhoto) {
+        profilePhoto.addEventListener('click', function() {
+            changeProfilePhoto();
+        });
+    }
+}
+
+// Changer la photo de profil
+function changeProfilePhoto() {
+    // Simuler le changement de photo avec une image aléatoire
+    const profilePicture = document.getElementById('profile-picture');
+    if (profilePicture) {
+        const randomId = Math.floor(Math.random() * 1000);
+        profilePicture.src = `https://placehold.co/150x150`;
+        showNotification('Photo de profil mise à jour', 'success');
+    }
+}
+
+// Supprimer la photo de profil
+function removeProfilePhoto() {
+    if (confirm('Êtes-vous sûr de vouloir supprimer votre photo de profil ?')) {
+        const profilePicture = document.getElementById('profile-picture');
+        if (profilePicture) {
+            profilePicture.src = 'https://via.placeholder.com/150x150/6366f1/ffffff?text=?';
+            showNotification('Photo de profil supprimée', 'info');
+        }
+    }
+}
+
+// Afficher le modal QR Code pour 2FA
+function showQRCodeModal() {
+    const qrContent = `
+        <div class="qr-setup">
+            <h3>Configuration de l'authentification à deux facteurs</h3>
+            <div class="qr-code-container">
+                <div class="qr-placeholder">
+                    <i class="fas fa-qrcode" style="font-size: 8rem; color: #6366f1;"></i>
+                    <p>Code QR pour Google Authenticator</p>
+                </div>
+            </div>
+            <div class="qr-instructions">
+                <ol>
+                    <li>Installez Google Authenticator sur votre téléphone</li>
+                    <li>Scannez ce code QR avec l'application</li>
+                    <li>Entrez le code à 6 chiffres généré</li>
+                </ol>
+                <div class="verification-input">
+                    <input type="text" placeholder="Code à 6 chiffres" maxlength="6" class="qr-code-input">
+                    <button class="btn-primary" onclick="verifyQRCode()">Vérifier</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    openModal('Configuration 2FA', qrContent);
+}
+
+// Vérifier le code QR
+function verifyQRCode() {
+    const codeInput = document.querySelector('.qr-code-input');
+    const code = codeInput.value;
+    
+    if (code.length === 6 && /^\d+$/.test(code)) {
+        // Simuler la vérification
+        setTimeout(() => {
+            closeModal();
+            document.getElementById('sms-2fa').checked = true;
+            updateSecurityStatus('sms-2fa', 'enabled', 'Activé depuis aujourd\'hui');
+            showNotification('Authentification SMS configurée avec succès', 'success');
+        }, 1000);
+    } else {
+        showNotification('Code invalide. Veuillez entrer 6 chiffres.', 'error');
+    }
 }
 
 // Système de notifications
